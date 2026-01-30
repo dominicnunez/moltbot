@@ -8,6 +8,12 @@ type ToolCallLike = {
 function extractToolCallsFromAssistant(
   msg: Extract<AgentMessage, { role: "assistant" }>,
 ): ToolCallLike[] {
+  // Skip extracting tool calls from messages that didn't complete normally.
+  // These may have incomplete/malformed tool_use blocks, and inserting
+  // synthetic results for them causes API validation failures.
+  const stopReason = (msg as { stopReason?: unknown }).stopReason;
+  if (stopReason === "aborted" || stopReason === "error") return [];
+
   const content = msg.content;
   if (!Array.isArray(content)) return [];
 
