@@ -7,12 +7,16 @@ import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../../../auto-reply/token
 import { formatToolAggregate } from "../../../auto-reply/tool-meta.js";
 import {
   BILLING_ERROR_USER_MESSAGE,
+  classifyFailoverReason,
   formatAssistantErrorText,
   formatRawAssistantErrorForUi,
   getApiErrorPayloadFingerprint,
+  isCompactionFailureError,
+  isLikelyContextOverflowError,
   isRawApiErrorPayload,
   normalizeTextForComparison,
 } from "../../pi-embedded-helpers.js";
+import type { ErrorKind } from "../../pi-embedded-helpers/types.js";
 import {
   extractAssistantText,
   extractAssistantThinking,
@@ -21,6 +25,20 @@ import {
 import { isLikelyMutatingToolName } from "../../tool-mutation.js";
 
 type ToolMetaEntry = { toolName: string; meta?: string };
+
+function deriveErrorKind(rawErrorMessage: string): ErrorKind {
+  if (isCompactionFailureError(rawErrorMessage)) {
+    return "compaction_failure";
+  }
+  if (isLikelyContextOverflowError(rawErrorMessage)) {
+    return "context_overflow";
+  }
+  const failoverReason = classifyFailoverReason(rawErrorMessage);
+  if (failoverReason && failoverReason !== "unknown") {
+    return failoverReason;
+  }
+  return "unknown";
+}
 
 export function buildEmbeddedRunPayloads(params: {
   assistantTexts: string[];
@@ -46,6 +64,7 @@ export function buildEmbeddedRunPayloads(params: {
   mediaUrls?: string[];
   replyToId?: string;
   isError?: boolean;
+  errorKind?: ErrorKind;
   audioAsVoice?: boolean;
   replyToTag?: boolean;
   replyToCurrent?: boolean;
@@ -54,6 +73,7 @@ export function buildEmbeddedRunPayloads(params: {
     text: string;
     media?: string[];
     isError?: boolean;
+    errorKind?: ErrorKind;
     audioAsVoice?: boolean;
     replyToId?: string;
     replyToTag?: boolean;
@@ -72,6 +92,9 @@ export function buildEmbeddedRunPayloads(params: {
   const rawErrorMessage = lastAssistantErrored
     ? params.lastAssistant?.errorMessage?.trim() || undefined
     : undefined;
+  const errorKind: ErrorKind | undefined = rawErrorMessage
+    ? deriveErrorKind(rawErrorMessage)
+    : undefined;
   const rawErrorFingerprint = rawErrorMessage
     ? getApiErrorPayloadFingerprint(rawErrorMessage)
     : null;
@@ -88,7 +111,7 @@ export function buildEmbeddedRunPayloads(params: {
   const normalizedGenericBillingErrorText = normalizeTextForComparison(BILLING_ERROR_USER_MESSAGE);
   const genericErrorText = "The AI service returned an error. Please try again.";
   if (errorText) {
-    replyItems.push({ text: errorText, isError: true });
+    replyItems.push({ text: errorText, isError: true, errorKind });
   }
 
   const inlineToolResults =
@@ -271,6 +294,7 @@ export function buildEmbeddedRunPayloads(params: {
       mediaUrls: item.media?.length ? item.media : undefined,
       mediaUrl: item.media?.[0],
       isError: item.isError,
+      errorKind: item.errorKind,
       replyToId: item.replyToId,
       replyToTag: item.replyToTag,
       replyToCurrent: item.replyToCurrent,

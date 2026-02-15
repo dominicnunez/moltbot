@@ -136,6 +136,7 @@ export async function runAgentTurnWithFallback(params: {
         }
         const sanitized = sanitizeUserFacingText(text, {
           errorContext: Boolean(payload.isError),
+          errorKind: payload.errorKind,
         });
         if (!sanitized.trim()) {
           return { skip: true };
