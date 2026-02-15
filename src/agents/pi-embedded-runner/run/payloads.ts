@@ -8,6 +8,7 @@ import { formatToolAggregate } from "../../../auto-reply/tool-meta.js";
 import {
   BILLING_ERROR_USER_MESSAGE,
   classifyFailoverReason,
+  deriveErrorKind,
   formatAssistantErrorText,
   formatRawAssistantErrorForUi,
   getApiErrorPayloadFingerprint,
@@ -25,20 +26,6 @@ import {
 import { isLikelyMutatingToolName } from "../../tool-mutation.js";
 
 type ToolMetaEntry = { toolName: string; meta?: string };
-
-function deriveErrorKind(rawErrorMessage: string): ErrorKind {
-  if (isCompactionFailureError(rawErrorMessage)) {
-    return "compaction_failure";
-  }
-  if (isLikelyContextOverflowError(rawErrorMessage)) {
-    return "context_overflow";
-  }
-  const failoverReason = classifyFailoverReason(rawErrorMessage);
-  if (failoverReason && failoverReason !== "unknown") {
-    return failoverReason;
-  }
-  return "unknown";
-}
 
 export function buildEmbeddedRunPayloads(params: {
   assistantTexts: string[];
