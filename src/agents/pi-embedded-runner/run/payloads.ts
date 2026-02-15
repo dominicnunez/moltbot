@@ -7,13 +7,10 @@ import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../../../auto-reply/token
 import { formatToolAggregate } from "../../../auto-reply/tool-meta.js";
 import {
   BILLING_ERROR_USER_MESSAGE,
-  classifyFailoverReason,
   deriveErrorKind,
   formatAssistantErrorText,
   formatRawAssistantErrorForUi,
   getApiErrorPayloadFingerprint,
-  isCompactionFailureError,
-  isLikelyContextOverflowError,
   isRawApiErrorPayload,
   normalizeTextForComparison,
 } from "../../pi-embedded-helpers.js";
